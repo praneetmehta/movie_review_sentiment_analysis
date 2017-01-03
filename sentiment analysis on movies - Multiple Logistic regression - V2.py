@@ -61,26 +61,24 @@ def cleanText(text):
 # %%
 
 df_copy = df.copy()
-X = df_copy['Phrase']#[df['Phrase'].str.len() < 100]
-Y = df_copy['Sentiment']#[df['Phrase'].str.len() < 100 ]
+X = df_copy['Phrase']#[df['Phrase'].str.split(' ').apply(len)<400]
+Y = df_copy['Sentiment']#[df['Phrase'].str.split(' ').apply(len)<400]
 
 X_clean = [cleanText(train_text) for train_text in X]
-#split into train and test data
-X_train_clean , X_test_clean, Y_train, Y_test = train_test_split(X_clean,Y)
-
-
-
-tagged_X = [pos_tag(word_tokenize(document)) for document in X_train_clean]
+tagged_X = [pos_tag(word_tokenize(document)) for document in X_clean]
 tagged_X_lemm = [[lemmatize(token, tag) for token, tag in document] for document in tagged_X]
-joined_lemm_X_train = [' '.join(text) for text in tagged_X_lemm]  
-
-
+joined_lemm_X = [' '.join(text) for text in tagged_X_lemm]  
+#split into train and test data
+X_train_clean , X_test_clean, Y_train, Y_test = train_test_split(joined_lemm_X,Y)
 
 
 # %%
+plt.plot(range(0,len(X_train_clean)),[len(string.split(' ')) for string in X_train_clean])
+
+# %%
 ### WITHOUT USING GRID SEARCH ###
-vectorizer = TfidfVectorizer(stop_words = 'english', max_df=0.5, ngram_range=(1,2),use_idf = False)
-X_train = vectorizer.fit_transform(joined_lemm_X_train)
+vectorizer = TfidfVectorizer(stop_words = 'english', max_df=0.25, ngram_range=(1,2),use_idf = False)
+X_train = vectorizer.fit_transform(X_train_clean)
 X_test = vectorizer.transform(X_test_clean)
 X_vec = vectorizer.transform(X)
 
@@ -113,7 +111,7 @@ print('Mean sqared error: %s'%msq(Y_test, regressor.predict(X_test)))
 ### USING GRID SEARCH ### (called only when the funtion main is called)
 # %%
 #CROSS VAL SCORE
-print('Cross Val Score: %s'%cross_val_score(regressor, X_vec, Y))
+#print('Cross Val Score: %s'%cross_val_score(regressor, X_vec, Y, cv=5))
 
 # %%
 def main():
@@ -122,10 +120,9 @@ def main():
         ('reg', LogisticRegression())
     ])
     parameters = {
-        'vect__max_df': (0.25, 0.5),
-        'vect__ngram_range': ((1, 1), (1, 2)),
-        'vect__use_idf': (True, False),
-        'reg__C': (0.1, 1, 10, 100),
+        'vect__max_df': (0.25, 0.5, 0.75),
+        'vect__ngram_range': ((1, 1), (1, 2), (1,3)),
+        'vect__use_idf': (True, False)
     }
     grid_search = GridSearchCV(pipeline, parameters, n_jobs=-1,verbose=1, scoring='accuracy')
     grid_search.fit(X_train_clean, Y_train)
@@ -158,9 +155,7 @@ def predictor(reviewText):
 
 
 # %%
-review = cleanText(open('./review.txt','r').read())
+review = cleanText(open('./Samples/1-3','r').read())
 print(predictor(review))
 
-# %%
-plt.plot(range(0,len(X_train_clean)),[len(string.split(' ')) for string in X_train_clean])
 
